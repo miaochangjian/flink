@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -145,7 +146,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// ---------------- timers ------------------
 
-	private transient Map<String, HeapInternalTimerService<?, ?>> timerServices;
+	private transient Map<String, InternalTimerService<?, ?>> timerServices;
 
 
 	// ---------------- two-input operator watermarks ------------------
@@ -406,9 +407,9 @@ public abstract class AbstractStreamOperator<OUT>
 					DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
 					dov.writeInt(timerServices.size());
 
-					for (Map.Entry<String, HeapInternalTimerService<?, ?>> entry : timerServices.entrySet()) {
+					for (Map.Entry<String, InternalTimerService<?, ?>> entry : timerServices.entrySet()) {
 						String serviceName = entry.getKey();
-						HeapInternalTimerService<?, ?> timerService = entry.getValue();
+						InternalTimerService<?, ?> timerService = entry.getValue();
 
 						dov.writeUTF(serviceName);
 						timerService.snapshotTimersForKeyGroup(dov, keyGroupIdx);
@@ -460,7 +461,7 @@ public abstract class AbstractStreamOperator<OUT>
 	public void initializeState(StateInitializationContext context) throws Exception {
 		if (getKeyedStateBackend() != null) {
 			int totalKeyGroups = getKeyedStateBackend().getNumberOfKeyGroups();
-			KeyGroupsList localKeyGroupRange = getKeyedStateBackend().getKeyGroupRange();
+			KeyGroupRange localKeyGroupRange = getKeyedStateBackend().getKeyGroupRange();
 
 			// initialize the map with the timer services
 			this.timerServices = new HashMap<>();
@@ -477,7 +478,7 @@ public abstract class AbstractStreamOperator<OUT>
 				for (int i = 0; i < noOfTimerServices; i++) {
 					String serviceName = div.readUTF();
 
-					HeapInternalTimerService<?, ?> timerService = this.timerServices.get(serviceName);
+					InternalTimerService<?, ?> timerService = this.timerServices.get(serviceName);
 					if (timerService == null) {
 						timerService = new HeapInternalTimerService<>(
 							totalKeyGroups,
@@ -875,35 +876,64 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @param namespaceSerializer {@code TypeSerializer} for the timer namespace.
 	 * @param triggerable The {@link Triggerable} that should be invoked when timers fire
 	 *
+	 * @param <K> The type of the key   
 	 * @param <N> The type of the timer namespace.
 	 */
-	public <N> InternalTimerService<N> getInternalTimerService(
+	@SuppressWarnings("unchecked")
+	public <K, N> InternalTimerService<K, N> getInternalTimerService(
 			String name,
 			TypeSerializer<N> namespaceSerializer,
 			Triggerable<?, N> triggerable) {
 		if (getKeyedStateBackend() == null) {
 			throw new UnsupportedOperationException("Timers can only be used on keyed operators.");
 		}
-
-		@SuppressWarnings("unchecked")
-		HeapInternalTimerService<Object, N> timerService = (HeapInternalTimerService<Object, N>) timerServices.get(name);
+		
+		InternalTimerService<K, N> timerService = (InternalTimerService<K, N>) timerServices.get(name);
 
 		if (timerService == null) {
-			timerService = new HeapInternalTimerService<>(
-				getKeyedStateBackend().getNumberOfKeyGroups(),
-				getKeyedStateBackend().getKeyGroupRange(),
-				this,
-				getRuntimeContext().getProcessingTimeService());
+			Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
+			
+			String timerServiceFactoryName = taskManagerConfig.getString(ConfigConstants.TIMER_SERVICE, null);
+			if (timerServiceFactoryName == null) {
+				LOG.warn("No timer service is specified. Using default timer service (heap).");
+				
+				timerService = new HeapInternalTimerService<>(
+						getKeyedStateBackend().getNumberOfKeyGroups(), 
+						getKeyedStateBackend().getKeyGroupRange(), 
+						this, 
+						getRuntimeContext().getProcessingTimeService());
+			} else {
+				try {
+					@SuppressWarnings("rawtypes")
+					Class<? extends InternalTimerServiceFactory> timerServiceFactoryClass = Class.forName(timerServiceFactoryName).asSubclass(InternalTimerServiceFactory.class);
+					InternalTimerServiceFactory timerServiceFactory = timerServiceFactoryClass.newInstance();
+					
+					timerService = (InternalTimerService<K, N>)timerServiceFactory.createInternalTimerService(
+							getKeyedStateBackend().getNumberOfKeyGroups(), 
+							getKeyedStateBackend().getKeyGroupRange(), 
+							this, 
+							getRuntimeContext().getProcessingTimeService(),
+							taskManagerConfig);
+				} catch (ClassNotFoundException e) {
+					throw new IllegalConfigurationException("Cannot find configured timer service factory: " + timerServiceFactoryName, e);
+				} catch (IllegalAccessException | InstantiationException e) {
+					throw new IllegalConfigurationException("Cannot create configured timer service factory: " + timerServiceFactoryName, e);
+				} catch (Exception e) {
+					throw new IllegalConfigurationException("Cannot create timer service with the configured factory: " + timerServiceFactoryName, e);
+				}
+			}
+			
 			timerServices.put(name, timerService);
 		}
-		@SuppressWarnings({"unchecked", "rawtypes"})
-		Triggerable rawTriggerable = (Triggerable) triggerable;
-		timerService.startTimerService(getKeyedStateBackend().getKeySerializer(), namespaceSerializer, rawTriggerable);
+		
+		Triggerable<K, N> rawTriggerable = (Triggerable<K, N>) triggerable;
+		TypeSerializer<K> keySerializer = (TypeSerializer<K>) getKeyedStateBackend().getKeySerializer();
+		timerService.startTimerService(keySerializer, namespaceSerializer, rawTriggerable);
 		return timerService;
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {
-		for (HeapInternalTimerService<?, ?> service : timerServices.values()) {
+		for (InternalTimerService<?, ?> service : timerServices.values()) {
 			service.advanceWatermark(mark.getTimestamp());
 		}
 		output.emitWatermark(mark);
@@ -930,7 +960,7 @@ public abstract class AbstractStreamOperator<OUT>
 	@VisibleForTesting
 	public int numProcessingTimeTimers() {
 		int count = 0;
-		for (HeapInternalTimerService<?, ?> timerService : timerServices.values()) {
+		for (InternalTimerService<?, ?> timerService : timerServices.values()) {
 			count += timerService.numProcessingTimeTimers();
 		}
 		return count;
@@ -939,7 +969,7 @@ public abstract class AbstractStreamOperator<OUT>
 	@VisibleForTesting
 	public int numEventTimeTimers() {
 		int count = 0;
-		for (HeapInternalTimerService<?, ?> timerService : timerServices.values()) {
+		for (InternalTimerService<?, ?> timerService : timerServices.values()) {
 			count += timerService.numEventTimeTimers();
 		}
 		return count;

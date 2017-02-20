@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,13 +32,11 @@ import java.util.Set;
  * Implementation of {@link InternalTimerService} meant to use for testing.
  */
 @Internal
-public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
+public class TestInternalTimerService<K, N> extends InternalTimerService<K, N> {
 
 	private long currentProcessingTime = Long.MIN_VALUE;
 
 	private long currentWatermark = Long.MIN_VALUE;
-
-	private final KeyContext keyContext;
 
 	/**
 	 * Processing time timers that are currently in-flight.
@@ -51,7 +51,7 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
 	private final PriorityQueue<Timer<K, N>> watermarkTimersQueue;
 
 	public TestInternalTimerService(KeyContext keyContext) {
-		this.keyContext = keyContext;
+		super(1, new KeyGroupRange(0, 1), keyContext, new TestProcessingTimeService());
 
 		watermarkTimers = new HashSet<>();
 		watermarkTimersQueue = new PriorityQueue<>(100);
@@ -107,7 +107,37 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
 		}
 	}
 
-	public Collection<Timer<K, N>> advanceProcessingTime(long time) throws Exception {
+	@Override
+	public Set<InternalTimer<K, N>> getEventTimeTimersForKeyGroup(int keyGroup) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Set<InternalTimer<K, N>> getProcessingTimeTimersForKeyGroup(int keyGroup) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void restoreEventTimeTimersForKeyGroup(int keyGroup, Iterable<InternalTimer<K, N>> internalTimers) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void restoreProcessingTimeTimersForKeyGroup(int keyGroup, Iterable<InternalTimer<K, N>> internalTimers) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void start() {
+
+	}
+
+	@Override
+	public void close() {
+
+	}
+
+	public Collection<Timer<K, N>> advanceProcessingTimeWithExpiredTimers(long time) throws Exception {
 		List<Timer<K, N>> result = new ArrayList<>();
 
 		Timer<K, N> timer = processingTimeTimersQueue.peek();
@@ -123,7 +153,7 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
 		return result;
 	}
 
-	public Collection<Timer<K, N>> advanceWatermark(long time) throws Exception {
+	public Collection<Timer<K, N>> advanceWatermarkWithExpiredTimers(long time) throws Exception {
 		List<Timer<K, N>> result = new ArrayList<>();
 
 		Timer<K, N> timer = watermarkTimersQueue.peek();
@@ -137,6 +167,16 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
 
 		currentWatermark = time;
 		return result;
+	}
+
+	@Override
+	public void onEventTime(long timestamp) throws Exception {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void onProcessingTime(long timestamp) throws Exception {
+		throw new UnsupportedOperationException();
 	}
 
 	/**

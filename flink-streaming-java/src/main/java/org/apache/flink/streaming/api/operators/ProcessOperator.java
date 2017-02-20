@@ -55,7 +55,7 @@ public class ProcessOperator<K, IN, OUT>
 		super.open();
 		collector = new TimestampedCollector<>(output);
 
-		InternalTimerService<VoidNamespace> internalTimerService =
+		InternalTimerService<K, VoidNamespace> internalTimerService =
 				getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
 
 		this.timerService = new SimpleTimerService(internalTimerService);

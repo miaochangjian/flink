@@ -639,7 +639,7 @@ public class AbstractStreamOperatorTest {
 
 		private static final long serialVersionUID = 1L;
 
-		private transient InternalTimerService<VoidNamespace> timerService;
+		private transient InternalTimerService<Integer, VoidNamespace> timerService;
 
 		private final ValueStateDescriptor<String> stateDescriptor =
 				new ValueStateDescriptor<>("state", StringSerializer.INSTANCE);

@@ -159,7 +159,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	// State that needs to be checkpointed
 	// ------------------------------------------------------------------------
 
-	protected transient InternalTimerService<W> internalTimerService;
+	protected transient InternalTimerService<K, W> internalTimerService;
 
 	// ------------------------------------------------------------------------
 	// State restored in case of migration from an older version (backwards compatibility)

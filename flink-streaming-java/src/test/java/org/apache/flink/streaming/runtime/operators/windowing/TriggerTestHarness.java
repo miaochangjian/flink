@@ -183,7 +183,7 @@ public class TriggerTestHarness<T, W extends Window> {
 	 */
 	public Collection<Tuple2<W, TriggerResult>> advanceProcessingTime(long time) throws Exception {
 		Collection<TestInternalTimerService.Timer<Integer, W>> firedTimers =
-				internalTimerService.advanceProcessingTime(time);
+				internalTimerService.advanceProcessingTimeWithExpiredTimers(time);
 
 		Collection<Tuple2<W, TriggerResult>> result = new ArrayList<>();
 
@@ -210,7 +210,7 @@ public class TriggerTestHarness<T, W extends Window> {
 	 */
 	public Collection<Tuple2<W, TriggerResult>> advanceWatermark(long time) throws Exception {
 		Collection<TestInternalTimerService.Timer<Integer, W>> firedTimers =
-				internalTimerService.advanceWatermark(time);
+				internalTimerService.advanceWatermarkWithExpiredTimers(time);
 
 		Collection<Tuple2<W, TriggerResult>> result = new ArrayList<>();
 
@@ -266,7 +266,7 @@ public class TriggerTestHarness<T, W extends Window> {
 
 	private static class TestTriggerContext<K, W extends Window> implements Trigger.TriggerContext {
 
-		protected final InternalTimerService<W> timerService;
+		protected final InternalTimerService<K, W> timerService;
 		protected final KeyedStateBackend<Integer> stateBackend;
 		protected final K key;
 		protected final W window;
@@ -275,7 +275,7 @@ public class TriggerTestHarness<T, W extends Window> {
 		TestTriggerContext(
 				K key,
 				W window,
-				InternalTimerService<W> timerService,
+				InternalTimerService<K, W> timerService,
 				KeyedStateBackend<Integer> stateBackend,
 				TypeSerializer<W> windowSerializer) {
 			this.key = key;
@@ -350,7 +350,7 @@ public class TriggerTestHarness<T, W extends Window> {
 				K key,
 				W targetWindow,
 				Collection<W> mergedWindows,
-				InternalTimerService<W> timerService,
+				InternalTimerService<K, W> timerService,
 				KeyedStateBackend<Integer> stateBackend,
 				TypeSerializer<W> windowSerializer) {
 			super(key, targetWindow, timerService, stateBackend, windowSerializer);

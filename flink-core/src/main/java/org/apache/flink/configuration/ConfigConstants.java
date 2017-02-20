@@ -744,6 +744,11 @@ public final class ConfigConstants {
 	 * State backend for checkpoints;
 	 */
 	public static final String STATE_BACKEND = "state.backend";
+
+	/**
+	 * Timer service
+	 */
+	public static final String TIMER_SERVICE = "timer.service";
 	
 	// ----------------------------- Miscellaneous ----------------------------
 	
