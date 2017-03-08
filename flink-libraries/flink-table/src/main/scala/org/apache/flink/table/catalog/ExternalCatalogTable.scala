@@ -30,6 +30,7 @@ import org.apache.flink.table.plan.stats.TableStats
   * @param properties           properties of external catalog table
   * @param stats                statistics of external catalog table
   * @param comment              comment of external catalog table
+  * @param partitionColumnNames partition columns name list
   * @param createTime           create time of external catalog table
   * @param lastAccessTime       last access time of of external catalog table
   */
@@ -40,6 +41,8 @@ case class ExternalCatalogTable(
     properties: Map[String, String] = Map.empty,
     stats: Option[TableStats] = None,
     comment: Option[String] = None,
+    partitionColumnNames: Seq[String] = Seq.empty,
+    isPartitioned: Boolean = false,
     createTime: Long = System.currentTimeMillis,
     lastAccessTime: Long = -1)
 
