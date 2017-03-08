@@ -31,6 +31,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.annotation.ExternalCatalogCompatible;
 import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.types.Row;
@@ -54,6 +55,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * Note: view is not supported yet
  */
+@ExternalCatalogCompatible(tableType = "odps", converter = ODPSTableSourceConverter.class)
 public class ODPSTableSource implements BatchTableSource<Row>, ProjectableTableSource<Row> {
 
 	/** odps config */
