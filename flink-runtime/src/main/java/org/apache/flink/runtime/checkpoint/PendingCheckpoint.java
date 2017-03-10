@@ -470,7 +470,7 @@ public class PendingCheckpoint {
 							try {
 								StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
 							} catch (Throwable t) {
-								LOG.warn("Could not properly dispose the pending checkpoint {} of job {}.", 
+								LOG.warn("Could not properly dispose the pending checkpoint {} of job {}.",
 										checkpointId, jobId, t);
 							} finally {
 								taskStates.clear();

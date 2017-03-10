@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats.DiscardCallback;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
@@ -32,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -184,22 +187,28 @@ public class CompletedCheckpoint implements Serializable {
 		return props;
 	}
 
-	public boolean subsume() throws Exception {
+	public void register(StateRegistry stateRegistry) {
+		for (TaskState taskState : taskStates.values()) {
+			taskState.register(stateRegistry);
+		}
+	}
+
+	public boolean subsume(StateRegistry stateRegistry) throws Exception {
 		if (props.discardOnSubsumed()) {
-			discard();
+			discard(stateRegistry);
 			return true;
 		}
 
 		return false;
 	}
 
-	public boolean discard(JobStatus jobStatus) throws Exception {
+	public boolean discard(JobStatus jobStatus, StateRegistry stateRegistry) throws Exception {
 		if (jobStatus == JobStatus.FINISHED && props.discardOnJobFinished() ||
 				jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled() ||
 				jobStatus == JobStatus.FAILED && props.discardOnJobFailed() ||
 				jobStatus == JobStatus.SUSPENDED && props.discardOnJobSuspended()) {
 
-			discard();
+			discard(stateRegistry);
 			return true;
 		} else {
 			if (externalPointer != null) {
@@ -211,7 +220,7 @@ public class CompletedCheckpoint implements Serializable {
 		}
 	}
 
-	void discard() throws Exception {
+	void discard(StateRegistry stateRegistry) throws Exception {
 		try {
 			// collect exceptions and continue cleanup
 			Exception exception = null;
@@ -225,20 +234,43 @@ public class CompletedCheckpoint implements Serializable {
 					exception = e;
 				}
 			}
-
-			// drop the actual state
-			try {
-				StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
+			
+			/*
+			 * unregister and get unreferenced state objects.
+			 * 
+			 * The unregistration operations must be performed after the 
+			 * checkpoint is already removed from CompletedCheckpointStore.
+			 * A state unregistered here may be soon deleted by another 
+			 * checkpoint. If the job fails before the checkpoint is removed 
+			 * from the store, we will find the checkpoint corrupted when we 
+			 * recover from the checkpoint.
+			 */
+			for (TaskState taskState : taskStates.values()) {
+				taskState.unregister(stateRegistry);
 			}
-			catch (Exception e) {
+
+			/* 
+			 * drop unreferenced state objects
+			 *
+			 * Since the synchronization on StateRegistry is performed at the 
+			 * granularity of operations, the unregistration and the retrievals 
+			 * performed by different checkpoints may be interleaved. 
+			 * Consequently, the discarded states returned may include those 
+			 * states discarded by other checkpoints and miss some states 
+			 * discarded by us. But the inconsistency here does not matter 
+			 * because all unreferenced states will eventually be discarded.
+			 */
+			List<StateObject> discardedStates = stateRegistry.getAndResetDiscardedStates();
+			try {
+				StateUtil.bestEffortDiscardAllStateObjects(discardedStates);
+			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
 			if (exception != null) {
 				throw exception;
 			}
-		}
-		finally {
+		} finally {
 			taskStates.clear();
 
 			// to be null-pointer safe, copy reference to stack

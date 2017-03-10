@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.StateRegistry;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,7 +62,7 @@ public class CompletedCheckpointTest {
 				new FileStateHandle(new Path(file.toURI()), file.length()),
 				file.getAbsolutePath());
 
-		checkpoint.discard(JobStatus.FAILED);
+		checkpoint.discard(JobStatus.FAILED, new StateRegistry());
 
 		assertEquals(false, file.exists());
 	}
@@ -80,10 +81,11 @@ public class CompletedCheckpointTest {
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(
 				new JobID(), 0, 0, 1, taskStates, props);
 
+		StateRegistry stateRegistry = new StateRegistry();
 		// Subsume
-		checkpoint.subsume();
+		checkpoint.subsume(stateRegistry);
 
-		verify(state, times(1)).discardState();
+		verify(state, times(1)).unregister(stateRegistry);
 	}
 
 	/**
@@ -102,6 +104,8 @@ public class CompletedCheckpointTest {
 		Map<JobVertexID, TaskState> taskStates = new HashMap<>();
 		taskStates.put(new JobVertexID(), state);
 
+		StateRegistry stateRegistry = new StateRegistry();
+
 		for (JobStatus status : terminalStates) {
 			Mockito.reset(state);
 
@@ -112,8 +116,8 @@ public class CompletedCheckpointTest {
 					new FileStateHandle(new Path(file.toURI()), file.length()),
 					externalPath);
 
-			checkpoint.discard(status);
-			verify(state, times(0)).discardState();
+			checkpoint.discard(status, stateRegistry);
+			verify(state, times(0)).unregister(stateRegistry);
 			assertEquals(true, file.exists());
 
 			// Discard
@@ -121,8 +125,8 @@ public class CompletedCheckpointTest {
 			checkpoint = new CompletedCheckpoint(
 					new JobID(), 0, 0, 1, new HashMap<>(taskStates), props);
 
-			checkpoint.discard(status);
-			verify(state, times(1)).discardState();
+			checkpoint.discard(status, stateRegistry);
+			verify(state, times(1)).unregister(stateRegistry);
 		}
 	}
 
@@ -146,7 +150,7 @@ public class CompletedCheckpointTest {
 		CompletedCheckpointStats.DiscardCallback callback = mock(CompletedCheckpointStats.DiscardCallback.class);
 		completed.setDiscardCallback(callback);
 
-		completed.discard(JobStatus.FINISHED);
+		completed.discard(JobStatus.FINISHED, new StateRegistry());
 		verify(callback, times(1)).notifyDiscardedCheckpoint();
 	}
 

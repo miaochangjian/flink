@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.TaskStateHandles;
 
 import org.slf4j.Logger;
@@ -768,7 +769,7 @@ public class CheckpointCoordinator {
 			} else {
 				completedCheckpoint = pendingCheckpoint.finalizeCheckpointNonExternalized();
 			}
-
+			
 			completedCheckpointStore.addCheckpoint(completedCheckpoint);
 
 			rememberRecentCheckpointId(checkpointId);
@@ -779,8 +780,16 @@ public class CheckpointCoordinator {
 			if (!pendingCheckpoint.isDiscarded()) {
 				pendingCheckpoint.abortError(exception);
 			}
-
+			
 			if (completedCheckpoint != null) {
+				
+				// TODO:: fix possible recovery from corrupted checkpoints
+				// The completed checkpoint may have already been added into
+				// the store, but the method may still throw an exception 
+				// due to other operations performed later. We should remove
+				// the complete checkpoint from the store if it is already 
+				// written in the store.
+				
 				// we failed to store the completed checkpoint. Let's clean up
 				final CompletedCheckpoint cc = completedCheckpoint;
 
@@ -788,7 +797,7 @@ public class CheckpointCoordinator {
 					@Override
 					public void run() {
 						try {
-							cc.discard();
+							StateUtil.bestEffortDiscardAllStateObjects(cc.getTaskStates().values());
 						} catch (Throwable t) {
 							LOG.warn("Could not properly discard completed checkpoint {}.", cc.getCheckpointID(), t);
 						}
