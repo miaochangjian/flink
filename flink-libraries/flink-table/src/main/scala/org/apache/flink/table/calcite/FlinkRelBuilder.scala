@@ -24,7 +24,7 @@ import org.apache.calcite.plan.volcano.VolcanoPlanner
 import java.lang.Iterable
 
 import org.apache.calcite.jdbc.CalciteSchema
-import org.apache.calcite.plan._
+import org.apache.calcite.plan.{RelOptCluster, _}
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
@@ -74,22 +74,10 @@ class FlinkRelBuilder(
 
 object FlinkRelBuilder {
 
-  def create(config: FrameworkConfig): FlinkRelBuilder = {
-
-    // create Flink type factory
-    val typeSystem = config.getTypeSystem
-    val typeFactory = new FlinkTypeFactory(typeSystem)
-
-    // create context instances with Flink type factory
-    val planner = new VolcanoPlanner(config.getCostFactory, Contexts.empty())
-    planner.setExecutor(config.getExecutor)
-    planner.addRelTraitDef(ConventionTraitDef.INSTANCE)
-    val cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory))
-    cluster.setMetadataProvider(FlinkDefaultRelMetadataProvider.INSTANCE)
-    // just set metadataProvider is not enough, see
-    // https://www.mail-archive.com/dev@calcite.apache.org/msg00930.html
-    RelMetadataQuery.THREAD_PROVIDERS.set(
-      JaninoRelMetadataProvider.of(cluster.getMetadataProvider))
+  def create(
+      config: FrameworkConfig,
+      typeFactory: FlinkTypeFactory,
+      relOptCluster: RelOptCluster): FlinkRelBuilder = {
     val calciteSchema = CalciteSchema.from(config.getDefaultSchema)
     val relOptSchema = new CalciteCatalogReader(
       calciteSchema,
@@ -97,7 +85,7 @@ object FlinkRelBuilder {
       Collections.emptyList(),
       typeFactory)
 
-    new FlinkRelBuilder(config.getContext, cluster, relOptSchema)
+    new FlinkRelBuilder(config.getContext, relOptCluster, relOptSchema)
   }
 
   /**

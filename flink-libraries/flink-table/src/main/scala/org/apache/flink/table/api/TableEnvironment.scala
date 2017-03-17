@@ -25,7 +25,7 @@ import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
-import org.apache.calcite.plan.{RelOptPlanner, RelOptUtil, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner, RelOptUtil, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
@@ -45,7 +45,7 @@ import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment =>
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.calcite._
 import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer}
 import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
@@ -88,13 +88,20 @@ abstract class TableEnvironment(val config: TableConfig) {
     .executor(new ExpressionReducer(config))
     .build
 
-  // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
-  protected lazy val relBuilder: FlinkRelBuilder = FlinkRelBuilder.create(frameworkConfig)
+  // the builder for Calcite RelOptCluster.
+  protected lazy val relOptClusterBuilder: FlinkRelOptClusterBuilder =
+    FlinkRelOptClusterBuilder.create(frameworkConfig)
+
+  protected lazy val relOptCluster: RelOptCluster = relOptClusterBuilder.getRelOptCluster
 
   // the planner instance used to optimize queries of this TableEnvironment
-  private lazy val planner: RelOptPlanner = relBuilder.getPlanner
+  private lazy val planner: RelOptPlanner = relOptClusterBuilder.getPlanner
 
-  private lazy val typeFactory: FlinkTypeFactory = relBuilder.getTypeFactory
+  private lazy val typeFactory: FlinkTypeFactory = relOptClusterBuilder.getTypeFactory
+
+  // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
+  protected lazy val relBuilder: FlinkRelBuilder =
+    FlinkRelBuilder.create(frameworkConfig, typeFactory, relOptCluster)
 
   // a counter for unique attribute names
   private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
@@ -382,7 +389,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @return The result of the query as Table.
     */
   def sql(query: String): Table = {
-    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
+    val planner = new FlinkPlannerImpl(
+      getFrameworkConfig,
+      getPlanner,
+      getTypeFactory,
+      getRelOptCluster)
     // parse the sql query
     val parsed = planner.parse(query)
     // validate the sql query
@@ -444,6 +455,11 @@ abstract class TableEnvironment(val config: TableConfig) {
   /** Returns a unique temporary attribute name. */
   private[flink] def createUniqueAttributeName(): String = {
     "TMP_" + attrNameCntr.getAndIncrement()
+  }
+
+  /** Returns the [[RelOptCluster]] of this TableEnvironment. */
+  private[flink] def getRelOptCluster: RelOptCluster = {
+    relOptCluster
   }
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */

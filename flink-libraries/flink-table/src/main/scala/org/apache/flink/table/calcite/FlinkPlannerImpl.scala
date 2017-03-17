@@ -36,6 +36,7 @@ import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 import org.apache.flink.table.api.{SqlParserException, TableException, ValidationException}
 import org.apache.flink.table.calcite.sql2rel.FlinkRelDecorrelator
+import org.apache.flink.table.plan.cost.FlinkDefaultRelMetadataProvider
 
 import scala.collection.JavaConversions._
 
@@ -48,7 +49,8 @@ import scala.collection.JavaConversions._
 class FlinkPlannerImpl(
     config: FrameworkConfig,
     planner: RelOptPlanner,
-    typeFactory: FlinkTypeFactory) {
+    typeFactory: FlinkTypeFactory,
+    relOptCluster: RelOptCluster) {
 
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   /** Holds the trait definitions to be registered with planner. May be null. */
@@ -99,11 +101,16 @@ class FlinkPlannerImpl(
     try {
       assert(validatedSqlNode != null)
       val rexBuilder: RexBuilder = createRexBuilder
-      val cluster: RelOptCluster = RelOptCluster.create(planner, rexBuilder)
       val config = SqlToRelConverter.configBuilder()
         .withTrimUnusedFields(false).withConvertTableAccess(false).build()
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-        new ViewExpanderImpl, validator, createCatalogReader, cluster, convertletTable, config)
+        new ViewExpanderImpl(relOptCluster),
+        validator,
+        createCatalogReader,
+        relOptCluster,
+        convertletTable,
+        config)
+
       root = sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
       // we disable automatic flattening in order to let composite types pass without modification
       // we might enable it again once Calcite has better support for structured types
@@ -117,7 +124,7 @@ class FlinkPlannerImpl(
 
   /** Implements [[org.apache.calcite.plan.RelOptTable.ViewExpander]]
     * interface for [[org.apache.calcite.tools.Planner]]. */
-  class ViewExpanderImpl extends ViewExpander {
+  class ViewExpanderImpl(cluster: RelOptCluster) extends ViewExpander {
 
     override def expandView(
         rowType: RelDataType,
@@ -140,11 +147,10 @@ class FlinkPlannerImpl(
       validator.setIdentifierExpansion(true)
       val validatedSqlNode: SqlNode = validator.validate(sqlNode)
       val rexBuilder: RexBuilder = createRexBuilder
-      val cluster: RelOptCluster = RelOptCluster.create(planner, rexBuilder)
       val config: SqlToRelConverter.Config = SqlToRelConverter.configBuilder
         .withTrimUnusedFields(false).withConvertTableAccess(false).build
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
-        new ViewExpanderImpl, validator, catalogReader, cluster, convertletTable, config)
+        new ViewExpanderImpl(cluster), validator, catalogReader, cluster, convertletTable, config)
       root = sqlToRelConverter.convertQuery(validatedSqlNode, true, false)
       root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
       root = root.withRel(FlinkRelDecorrelator.decorrelateQuery(root.rel))

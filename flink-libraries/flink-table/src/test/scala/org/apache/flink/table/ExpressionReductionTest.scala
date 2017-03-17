@@ -32,8 +32,7 @@ class ExpressionReductionTest extends TableTestBase {
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT " +
-      "(3+4)+a, " +
-      "b+(1+2), " +
+      "(3+4)+6, " +
       "CASE 11 WHEN 1 THEN 'a' ELSE 'b' END, " +
       "TRIM(BOTH ' STRING '),  " +
       "'test' || 'string', " +
@@ -51,19 +50,18 @@ class ExpressionReductionTest extends TableTestBase {
       "DataSetCalc",
       batchTableNode(0),
       term("select",
-        "+(7, a) AS EXPR$0",
-        "+(b, 3) AS EXPR$1",
-        "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
-        "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01 AS EXPR$6",
-        "19 AS EXPR$7",
-        "false AS EXPR$8",
-        "true AS EXPR$9",
-        "2 AS EXPR$10",
-        "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "13 AS EXPR$0",
+        "'b' AS EXPR$1",
+        "'STRING' AS EXPR$2",
+        "'teststring' AS EXPR$3",
+        "null AS EXPR$4",
+        "1990-10-24 23:00:01 AS EXPR$5",
+        "19 AS EXPR$6",
+        "false AS EXPR$7",
+        "true AS EXPR$8",
+        "2 AS EXPR$9",
+        "true AS EXPR$10",
+        "'trueX' AS EXPR$11"
       ),
       term("where", ">(a, 8)")
     )

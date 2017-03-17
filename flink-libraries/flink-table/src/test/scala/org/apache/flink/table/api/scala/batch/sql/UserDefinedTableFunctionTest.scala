@@ -61,7 +61,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
       unaryNode(
         "DataSetCorrelate",
         batchTableNode(0),
-        term("invocation", "func1($cor0.c, '$')"),
+        term("invocation", "func1($cor1.c, '$')"),
         term("function", func1.getClass.getCanonicalName),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)"),

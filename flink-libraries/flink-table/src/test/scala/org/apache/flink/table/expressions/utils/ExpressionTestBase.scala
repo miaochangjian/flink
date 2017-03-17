@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions.utils
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
 import java.util
 import java.util.concurrent.Future
+
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql2rel.RelDecorrelator
@@ -63,7 +64,8 @@ abstract class ExpressionTestBase {
   private val planner = new FlinkPlannerImpl(
     context._2.getFrameworkConfig,
     context._2.getPlanner,
-    context._2.getTypeFactory)
+    context._2.getTypeFactory,
+    context._2.getRelOptCluster)
   private val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
 
   private def hepPlanner = {
