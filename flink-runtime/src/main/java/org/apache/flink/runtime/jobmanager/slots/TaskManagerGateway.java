@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
@@ -186,4 +187,12 @@ public interface TaskManagerGateway {
 	 * @return Future blob key under which the task manager stdout file has been stored
 	 */
 	CompletableFuture<TransientBlobKey> requestTaskManagerStdout(final Time timeout);
+
+	/**
+	 * Notify the slot is unused.
+	 *
+	 * @param allocationID allocation id of the slot
+	 * @return Future acknowledge if notify successfully
+	 */
+	CompletableFuture<Acknowledge> notifySlotUnused(AllocationID allocationID);
 }

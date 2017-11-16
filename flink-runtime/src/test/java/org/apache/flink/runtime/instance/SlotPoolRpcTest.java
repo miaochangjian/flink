@@ -38,6 +38,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.clock.Clock;
+import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -53,6 +54,7 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import static org.apache.flink.runtime.instance.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
 import static org.junit.Assert.assertEquals;
@@ -97,12 +99,13 @@ public class SlotPoolRpcTest extends TestLogger {
 		
 		final SlotPool pool = new SlotPool(
 			rpcService,
+			new TimerService<>(new ScheduledThreadPoolExecutor(1), 1000),
 			jid,
 			SystemClock.getInstance(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
-			Time.milliseconds(10L) // this is the timeout for the request tested here
-		);
+			Time.milliseconds(10L), // this is the timeout for the request tested here
+			TestingUtils.infiniteTime());
 
 		try {
 			pool.start(JobMasterId.generate(), "foobar");
@@ -121,6 +124,7 @@ public class SlotPoolRpcTest extends TestLogger {
 				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof NoResourceAvailableException);
 			}
 		} finally {
+			pool.suspend();
 			RpcUtils.terminateRpcEndpoint(pool, timeout);
 		}
 	}
@@ -162,6 +166,7 @@ public class SlotPoolRpcTest extends TestLogger {
 
 			assertEquals(0L, (long) pool.getNumberOfWaitingForResourceRequests().get());
 		} finally {
+			pool.suspend();
 			RpcUtils.terminateRpcEndpoint(pool, timeout);
 		}
 	}
@@ -205,6 +210,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			slotPoolGateway.cancelSlotAllocation(requestId).get();
 			assertEquals(0L, (long) pool.getNumberOfPendingRequests().get());
 		} finally {
+			pool.suspend();
 			RpcUtils.terminateRpcEndpoint(pool, timeout);
 		}
 	}
@@ -267,6 +273,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			assertFalse(pool.containsAllocatedSlot(allocationId).get());
 			assertTrue(pool.containsAvailableSlot(allocationId).get());
 		} finally {
+			pool.suspend();
 			RpcUtils.terminateRpcEndpoint(pool, timeout);
 		}
 	}
@@ -317,6 +324,7 @@ public class SlotPoolRpcTest extends TestLogger {
 
 			assertEquals(0L, (long) pool.getNumberOfPendingRequests().get());
 		} finally {
+			pool.suspend();
 			RpcUtils.terminateRpcEndpoint(pool, timeout);
 		}
 	}
@@ -337,11 +345,13 @@ public class SlotPoolRpcTest extends TestLogger {
 				Time resourceManagerRequestTimeout) {
 			super(
 				rpcService,
+				new TimerService<>(new ScheduledThreadPoolExecutor(1), 1000),
 				jobId,
 				clock,
 				slotRequestTimeout,
 				resourceManagerAllocationTimeout,
-				resourceManagerRequestTimeout);
+				resourceManagerRequestTimeout,
+				TestingUtils.infiniteTime());
 
 			cancelSlotAllocationConsumer = null;
 		}

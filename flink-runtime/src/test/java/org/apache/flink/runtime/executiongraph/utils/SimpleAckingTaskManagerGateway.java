@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -138,5 +139,10 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	@Override
 	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout) {
 		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> notifySlotUnused(AllocationID allocationID) {
+		throw new UnsupportedOperationException("Operation is not yet supported.");
 	}
 }

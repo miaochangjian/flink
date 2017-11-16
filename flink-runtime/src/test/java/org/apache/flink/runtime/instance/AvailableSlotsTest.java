@@ -19,21 +19,28 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotAndLocality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class AvailableSlotsTest {
 
@@ -43,7 +50,7 @@ public class AvailableSlotsTest {
 
 	@Test
 	public void testAddAndRemove() throws Exception {
-		SlotPool.AvailableSlots availableSlots = new SlotPool.AvailableSlots();
+		SlotPool.AvailableSlots availableSlots = new SlotPool.AvailableSlots(null, null);
 
 		final ResourceID resource1 = new ResourceID("resource1");
 		final ResourceID resource2 = new ResourceID("resource2");
@@ -84,7 +91,9 @@ public class AvailableSlotsTest {
 
 	@Test
 	public void testPollFreeSlot() {
-		SlotPool.AvailableSlots availableSlots = new SlotPool.AvailableSlots();
+		final SlotPoolService slotPoolService = SlotPoolService.fromConfiguration(new Configuration());
+		SlotPool.AvailableSlots availableSlots = new SlotPool.AvailableSlots(
+			slotPoolService.getTimerService(), slotPoolService.getSlotIdleTimeout());
 
 		final ResourceID resource1 = new ResourceID("resource1");
 		final AllocatedSlot slot1 = createAllocatedSlot(resource1);
@@ -102,6 +111,35 @@ public class AvailableSlotsTest {
 		assertEquals(0, availableSlots.size());
 		assertFalse(availableSlots.contains(slot1.getSlotAllocationId()));
 		assertFalse(availableSlots.containsTaskManager(resource1));
+	}
+
+	@Test
+	public void testAddAndRemoveWithTimerService() {
+		@SuppressWarnings("unchecked")
+		final TimerService<AllocatedSlot> timerService = Mockito.mock(TimerService.class);
+
+		final SlotPool.AvailableSlots availableSlots = new SlotPool.AvailableSlots(timerService, Time.milliseconds(10));
+
+		final ResourceID resource1 = new ResourceID("resource1");
+		final ResourceID resource2 = new ResourceID("resource2");
+
+		final AllocatedSlot slot1 = createAllocatedSlot(resource1);
+		final AllocatedSlot slot2 = createAllocatedSlot(resource2);
+
+		availableSlots.add(slot1, 1L);
+		availableSlots.add(slot2, 2L);
+
+		availableSlots.tryRemove(slot1.getSlotAllocationId());
+		availableSlots.tryRemove(slot2.getSlotAllocationId());
+
+		ArgumentCaptor<AllocatedSlot> argumentCaptor = ArgumentCaptor.forClass(AllocatedSlot.class);
+		verify(timerService, times(2)).registerTimeout(argumentCaptor.capture(), eq(10L), eq(TimeUnit.MILLISECONDS));
+
+		List<AllocatedSlot> allocatedSlots = argumentCaptor.getAllValues();
+		assertEquals(2, allocatedSlots.size());
+
+		assertTrue(slot1.getSlotAllocationId().equals(allocatedSlots.get(0).getSlotAllocationId()));
+		assertTrue(slot2.getSlotAllocationId().equals(allocatedSlots.get(1).getSlotAllocationId()));
 	}
 
 	static AllocatedSlot createAllocatedSlot(final ResourceID resourceId) {

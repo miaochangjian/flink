@@ -59,6 +59,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.instance.SlotPool;
 import org.apache.flink.runtime.instance.SlotPoolGateway;
+import org.apache.flink.runtime.instance.SlotPoolService;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -272,7 +273,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
-		this.slotPool = new SlotPool(rpcService, jobGraph.getJobID());
+		this.slotPool = SlotPoolService.fromConfiguration(configuration)
+			.createSlotPool(rpcService, jobGraph.getJobID());
+
 		this.slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
 
 		this.executionGraph = ExecutionGraphBuilder.buildGraph(

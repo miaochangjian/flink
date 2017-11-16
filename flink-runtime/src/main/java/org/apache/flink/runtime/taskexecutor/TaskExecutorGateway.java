@@ -135,6 +135,14 @@ public interface TaskExecutorGateway extends RpcGateway {
 	CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, @RpcTimeout Time timeout);
 
 	/**
+	 * Notify the slot is unused.
+	 *
+	 * @param allocationID allocation id of the slot
+	 * @return Future acknowledge if notify successfully
+	 */
+	CompletableFuture<Acknowledge> notifySlotUnused(AllocationID allocationID);
+
+	/**
 	 * Heartbeat request from the job manager
 	 *
 	 * @param heartbeatOrigin unique id of the job manager
