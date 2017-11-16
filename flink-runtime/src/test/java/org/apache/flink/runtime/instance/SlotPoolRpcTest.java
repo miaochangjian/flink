@@ -124,7 +124,6 @@ public class SlotPoolRpcTest extends TestLogger {
 				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof NoResourceAvailableException);
 			}
 		} finally {
-			pool.suspend();
 			RpcUtils.terminateRpcEndpoint(pool, timeout);
 		}
 	}
@@ -166,7 +165,6 @@ public class SlotPoolRpcTest extends TestLogger {
 
 			assertEquals(0L, (long) pool.getNumberOfWaitingForResourceRequests().get());
 		} finally {
-			pool.suspend();
 			RpcUtils.terminateRpcEndpoint(pool, timeout);
 		}
 	}
@@ -210,7 +208,6 @@ public class SlotPoolRpcTest extends TestLogger {
 			slotPoolGateway.cancelSlotAllocation(requestId).get();
 			assertEquals(0L, (long) pool.getNumberOfPendingRequests().get());
 		} finally {
-			pool.suspend();
 			RpcUtils.terminateRpcEndpoint(pool, timeout);
 		}
 	}
@@ -273,7 +270,6 @@ public class SlotPoolRpcTest extends TestLogger {
 			assertFalse(pool.containsAllocatedSlot(allocationId).get());
 			assertTrue(pool.containsAvailableSlot(allocationId).get());
 		} finally {
-			pool.suspend();
 			RpcUtils.terminateRpcEndpoint(pool, timeout);
 		}
 	}
@@ -324,7 +320,6 @@ public class SlotPoolRpcTest extends TestLogger {
 
 			assertEquals(0L, (long) pool.getNumberOfPendingRequests().get());
 		} finally {
-			pool.suspend();
 			RpcUtils.terminateRpcEndpoint(pool, timeout);
 		}
 	}

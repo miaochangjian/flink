@@ -121,7 +121,6 @@ public class SlotPoolTest extends TestLogger {
 			assertEquals(slotPool.getSlotOwner(), slot.getOwner());
 			assertEquals(slotPool.getAllocatedSlots().get(slot.getAllocatedSlot().getSlotAllocationId()), slot);
 		} finally {
-			slotPool.suspend();
 			slotPool.shutDown();
 		}
 	}
@@ -170,7 +169,6 @@ public class SlotPoolTest extends TestLogger {
 			assertEquals(slot1.getSlotNumber(), slot2.getSlotNumber());
 			assertEquals(slotPool.getAllocatedSlots().get(slot1.getAllocatedSlot().getSlotAllocationId()), slot2);
 		} finally {
-			slotPool.suspend();
 			slotPool.shutDown();
 		}
 	}
@@ -215,7 +213,6 @@ public class SlotPoolTest extends TestLogger {
 			assertEquals(slot1.getTaskManagerID(), slot2.getTaskManagerID());
 			assertEquals(slot1.getSlotNumber(), slot2.getSlotNumber());
 		} finally {
-			slotPool.suspend();
 			slotPool.shutDown();
 		}
 	}
@@ -263,7 +260,6 @@ public class SlotPoolTest extends TestLogger {
 			slot.releaseSlot();
 			assertTrue(slotPoolGateway.offerSlot(allocatedSlot).get());
 		} finally {
-			slotPool.suspend();
 			slotPool.shutDown();
 		}
 	}
@@ -326,7 +322,6 @@ public class SlotPoolTest extends TestLogger {
 			Thread.sleep(10);
 			assertFalse(future2.isDone());
 		} finally {
-			slotPool.suspend();
 			slotPool.shutDown();
 		}
 	}
@@ -387,7 +382,6 @@ public class SlotPoolTest extends TestLogger {
 			assertEquals(requestSlotFutureAllocationId.get(), cancelSlotFuture.get());
 		} finally {
 			try {
-				slotPool.suspend();
 				RpcUtils.terminateRpcEndpoint(slotPool, timeout);
 			} catch (Exception e) {
 				LOG.warn("Could not properly terminate the SlotPool.", e);

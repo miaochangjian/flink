@@ -213,6 +213,11 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, TimeoutLis
 		pendingRequests.clear();
 	}
 
+	@Override
+	public void postStop() throws Exception {
+		timerService.stop();
+	}
+
 	// ------------------------------------------------------------------------
 	//  Getting PoolOwner and PoolProvider
 	// ------------------------------------------------------------------------
