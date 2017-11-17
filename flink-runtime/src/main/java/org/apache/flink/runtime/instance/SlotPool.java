@@ -216,6 +216,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, TimeoutLis
 	@Override
 	public void postStop() throws Exception {
 		timerService.stop();
+		super.postStop();
 	}
 
 	// ------------------------------------------------------------------------
