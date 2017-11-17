@@ -744,6 +744,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, TimeoutLis
 	@VisibleForTesting
 	Map<SlotRequestID, PendingRequest> getWaitingForResourceManager() {
 		return waitingForResourceManager;
+	}
 
 	// ------------------------------------------------------------------------
 	//  Helper classes
