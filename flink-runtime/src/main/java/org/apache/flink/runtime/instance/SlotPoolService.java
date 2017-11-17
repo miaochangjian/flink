@@ -25,6 +25,7 @@ import org.apache.flink.configuration.SlotOptions;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.clock.SystemClock;
 import scala.concurrent.duration.Duration;
 
@@ -37,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class SlotPoolService {
 
-	private static final long slotPoolShutdownTimeout = 1000;
+	private static final long SLOT_POOL_SHUTDOWN_TIMEOUT = 1000;
 
 	private final TimerService<AllocatedSlot> timerService;
 
@@ -165,8 +166,10 @@ public class SlotPoolService {
 		}
 
 		final TimerService<AllocatedSlot> timerService = new TimerService<>(
-			new ScheduledThreadPoolExecutor(1),
-			slotPoolShutdownTimeout);
+			new ScheduledThreadPoolExecutor(
+				1,
+				new ExecutorThreadFactory("slot-pool-timer-service")),
+			SLOT_POOL_SHUTDOWN_TIMEOUT);
 
 		return new SlotPoolService(
 			timerService,
