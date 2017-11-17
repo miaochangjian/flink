@@ -206,7 +206,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, TimeoutLis
 
 		// Clear (but not release!) the available slots. The TaskManagers should re-register them
 		// at the new leader JobManager/SlotPool
-		timerService.stop();
+		timerService.unregisterAllTimeouts();
 
 		availableSlots.clear();
 		allocatedSlots.clear();

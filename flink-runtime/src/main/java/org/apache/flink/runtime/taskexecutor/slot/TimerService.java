@@ -124,7 +124,7 @@ public class TimerService<K> {
 	/**
 	 * Unregister all timeouts.
 	 */
-	protected void unregisterAllTimeouts() {
+	public void unregisterAllTimeouts() {
 		for (Timeout<K> timeout : timeouts.values()) {
 			timeout.cancel();
 		}
