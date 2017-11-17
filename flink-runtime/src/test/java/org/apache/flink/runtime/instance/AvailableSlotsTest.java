@@ -20,7 +20,6 @@ package org.apache.flink.runtime.instance;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -50,7 +49,7 @@ public class AvailableSlotsTest {
 
 	@Test
 	public void testAddAndRemove() throws Exception {
-		SlotPool.AvailableSlots availableSlots = new SlotPool.AvailableSlots(null, null);
+		SlotPool.AvailableSlots availableSlots = new SlotPool.AvailableSlots();
 
 		final ResourceID resource1 = new ResourceID("resource1");
 		final ResourceID resource2 = new ResourceID("resource2");
@@ -91,9 +90,7 @@ public class AvailableSlotsTest {
 
 	@Test
 	public void testPollFreeSlot() {
-		final SlotPoolService slotPoolService = SlotPoolService.fromConfiguration(new Configuration());
-		SlotPool.AvailableSlots availableSlots = new SlotPool.AvailableSlots(
-			slotPoolService.getTimerService(), slotPoolService.getSlotIdleTimeout());
+		SlotPool.AvailableSlots availableSlots = new SlotPool.AvailableSlots();
 
 		final ResourceID resource1 = new ResourceID("resource1");
 		final AllocatedSlot slot1 = createAllocatedSlot(resource1);

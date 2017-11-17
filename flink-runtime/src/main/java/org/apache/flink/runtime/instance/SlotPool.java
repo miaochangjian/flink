@@ -901,6 +901,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, TimeoutLis
 
 		private final long idleSlotTimeoutMs;
 
+		AvailableSlots() {
+			this(null, null);
+		}
+
 		AvailableSlots(@Nullable TimerService<AllocatedSlot> timerService, @Nullable Time idleSlotTimeout) {
 			this.availableSlotsByTaskManager = new HashMap<>();
 			this.availableSlotsByHost = new HashMap<>();
