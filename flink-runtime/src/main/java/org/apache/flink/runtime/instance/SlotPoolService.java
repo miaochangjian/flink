@@ -149,7 +149,7 @@ public class SlotPoolService {
 		}
 
 		final String slotIdleTimeoutDescription = config.getString(
-			SlotOptions.SLOT_POOL_IDEL_TIMEOUT);
+			SlotOptions.SLOT_POOL_IDLE_TIMEOUT);
 
 		final Time slotIdleTimeout;
 
@@ -162,7 +162,7 @@ public class SlotPoolService {
 			}
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
-				SlotOptions.SLOT_POOL_IDEL_TIMEOUT.key() + ": " + slotIdleTimeoutDescription);
+				SlotOptions.SLOT_POOL_IDLE_TIMEOUT.key() + ": " + slotIdleTimeoutDescription);
 		}
 
 		final TimerService<AllocatedSlot> timerService = new TimerService<>(

@@ -30,6 +30,7 @@ public class SlotOptions {
 
 	/**
 	 * The timeout of a slot allocation.
+	 * Including sending request to RM, slot offering from TM.
 	 */
 	public static final ConfigOption<String> SLOT_ALLOCATION_TIMEOUT =
 		key("slot.allocation.timeout")
@@ -44,6 +45,7 @@ public class SlotOptions {
 
 	/**
 	 * The timeout of a slot allocation to resource manager.
+	 * This range from successfully receiving response from RM to slot offering from TM.
 	 */
 	public static final ConfigOption<String> SLOT_ALLOCATION_RESOURCE_MANAGER_TIMEOUT =
 		key("slot.allocation.resourcemanager.timeout")
@@ -53,7 +55,7 @@ public class SlotOptions {
 	 * The timeout of a idle slot in slot pool.
 	 * If timeout happens, the idle slot in slot pool would be returned to resource manager.
 	 */
-	public static final ConfigOption<String> SLOT_POOL_IDEL_TIMEOUT =
+	public static final ConfigOption<String> SLOT_POOL_IDLE_TIMEOUT =
 		key("slot.pool.idle.timeout")
 			.defaultValue("5 min");
 }
